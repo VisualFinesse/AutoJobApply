@@ -2,18 +2,30 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Program",
+      "name": "Launch Playwright Tests",
       "type": "pwa-node",
       "request": "launch",
-      "program": "${workspaceFolder}tests/example.spec.ts", // Replace with the path to your script
-      "skipFiles": [
+      "runtimeArgs": [ //This is where ts-node is registered, allowing TypeScript files to be executed directly.
+        "-r",
+        "ts-node/register"
+      ],
+      "args": [
+        "${workspaceFolder}/tests/example.spec.ts" // Path to Test
+      ],
+      "skipFiles": [ // Ensures that the debugger skips over the internal Node.js and Playwright files.
         "<node_internals>/**",
         "node_modules/**",
         "${workspaceFolder}/node_modules/@playwright/test/lib/**",
         "${workspaceFolder}/node_modules/playwright/**"
       ],
-      "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "sourceMaps": true, // Ensures that source maps are used for debugging.
+      "outFiles": [ // The outFiles setting in the VSCode launch.json configuration specifies the paths where the debugger should look for the compiled JavaScript files and their corresponding source maps. 
+        "${workspaceFolder}/tests/**/*.ts" // Specifies the paths for the TypeScript files.
+      ],
+      "env": { // Sets the TS_NODE_PROJECT environment variable to use your tsconfig.json.
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
+      },
+      "justMyCode": true // Ensures the debugger focuses on your code only.
     }
   ]
 }
