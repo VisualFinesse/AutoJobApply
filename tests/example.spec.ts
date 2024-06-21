@@ -11,21 +11,21 @@ const visitedPages = new Set<string>();
 const capturedActions: CapturedAction[] = [];
 
 // Function to explore pages recursively
-async function explorePage(page: any, url: string) {
+async function explorePage(page: any, url: string, baseUrl: string) {
   if (visitedPages.size >= 1000 || visitedPages.has(url)) return;
   visitedPages.add(url);
   await page.goto(url);
   await capturePageActions(page, url);
 
   // Extract links or perform actions on the page
-  const links = await page.$$eval('a', anchors => anchors.map(a => a.href));
+  const links = await page.$$eval('a', (anchors: HTMLAnchorElement[]) => anchors.map(a => a.href));
 
   // Explore links
   for (const link of links) {
-    if (!visitedPages.has(link)) {
-      await explorePage(page, link);
+    if (link.startsWith(baseUrl) && !visitedPages.has(link)) {
+      await explorePage(page, link, baseUrl);
       const newPage = await page.context().newPage();
-      await explorePage(newPage, link);
+      await explorePage(newPage, link, baseUrl);
       await newPage.close();
     }
   }
@@ -37,13 +37,13 @@ async function explorePage(page: any, url: string) {
       await button.click();
       await page.waitForLoadState('networkidle'); // Wait for network to be idle or timeout after 7 seconds
       const newUrl = page.url();
-      if (!visitedPages.has(newUrl)) {
+      if (newUrl.startsWith(baseUrl) && !visitedPages.has(newUrl)) {
         const newPage = await page.context().newPage();
-        await explorePage(page, newUrl);
+        await explorePage(newPage, newUrl, baseUrl);
         await newPage.close();
       }
     } catch (e) {
-      console.log(`Failed to click button: ${e.message}`);
+      console.log(`Failed to click button: ${(e as Error).message}`);
     }
   }
 }
@@ -64,7 +64,7 @@ async function capturePageActions(page: any, url: string) {
       await button.click();
       actions.push(`await page.click('button'); // Click button`);
     } catch (e) {
-      console.log(`Failed to click button: ${e.message}`);
+      console.log(`Failed to click button: ${(e as Error).message}`);
     }
   }
 
@@ -74,7 +74,7 @@ async function capturePageActions(page: any, url: string) {
       await select.selectOption({ index: 0 });
       actions.push(`await page.selectOption('select', { index: 0 }); // Select first option`);
     } catch (e) {
-      console.log(`Failed to select option: ${e.message}`);
+      console.log(`Failed to select option: ${(e as Error).message}`);
     }
   }
 
@@ -110,10 +110,10 @@ function generateTestScript() {
 }
 
 // Playwright test suite
-const startingUrl = 'https://visual-finesse-inc-5bd58e-9a74b894a540a.webflow.io';
+const baseUrl = 'https://visual-finesse-inc-5bd58e-9a74b894a540a.webflow.io';
 test.describe('Dynamic Page Explorer', () => {
   test('Explore pages and generate tests', async ({ page }) => {
-    await explorePage(page, startingUrl);
+    await explorePage(page, baseUrl, baseUrl);
 
     // Export generated tests
     const testsDirectory = './generated-tests';
