@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { chromium as chromiumExtra } from 'playwright-extra';
-import stealth from 'puppeteer-extra-plugin-stealth';
+import { chromiumWithStealth as chromium } from '../setup';
 import fs from 'fs';
-
-// Add the stealth plugin to Playwright
-chromiumExtra.use(stealth());
 
 type CapturedAction = {
   url: string;
@@ -23,23 +19,28 @@ async function explorePage(page: any, url: string) {
 
   // Extract links or perform actions on the page
   const links = await page.$$eval('a', anchors => anchors.map(a => a.href));
-  const buttons = await page.$$('button');
 
   // Explore links
   for (const link of links) {
     if (!visitedPages.has(link)) {
       await explorePage(page, link);
+      const newPage = await page.context().newPage();
+      await explorePage(newPage, link);
+      await newPage.close();
     }
   }
 
   // Click buttons and check for new routes/endpoints
+  const buttons = await page.$$('button');
   for (const button of buttons) {
     try {
       await button.click();
       await page.waitForLoadState('networkidle'); // Wait for network to be idle or timeout after 7 seconds
       const newUrl = page.url();
       if (!visitedPages.has(newUrl)) {
+        const newPage = await page.context().newPage();
         await explorePage(page, newUrl);
+        await newPage.close();
       }
     } catch (e) {
       console.log(`Failed to click button: ${e.message}`);
@@ -109,9 +110,9 @@ function generateTestScript() {
 }
 
 // Playwright test suite
+const startingUrl = 'https://visual-finesse-inc-5bd58e-9a74b894a540a.webflow.io';
 test.describe('Dynamic Page Explorer', () => {
   test('Explore pages and generate tests', async ({ page }) => {
-    const startingUrl = 'https://example.com';
     await explorePage(page, startingUrl);
 
     // Export generated tests
